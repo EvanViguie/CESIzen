@@ -1,0 +1,78 @@
+site_name: CESIZen Documentation
+site_description: Documentation for CESIZen - Mental Health Application
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+plugins:
+  - search
+  - mermaid2
+
+nav:
+  - Home: index.md
+  - Activities:
+      - activities/index.md
+      - Activity 1:
+          - activities/activity1/index.md
+          - Analysis:
+              - activities/activity1/analysis/context.md
+              - activities/activity1/analysis/requirements.md
+              - activities/activity1/analysis/constraints.md
+              - activities/activity1/analysis/stakeholders.md
+          - Specifications:
+              - Functional:
+                  - activities/activity1/specifications/functional/user-management.md
+                  - activities/activity1/specifications/functional/information.md
+                  - activities/activity1/specifications/functional/diagnostics.md
+                  - activities/activity1/specifications/functional/breathing.md
+                  - activities/activity1/specifications/functional/emotion-tracking.md
+              - Technical:
+                  - activities/activity1/specifications/technical/architecture.md
+                  - activities/activity1/specifications/technical/data-model.md
+                  - activities/activity1/specifications/technical/security.md
+  - Architecture:
+      - architecture/overview.md
+      - Decisions: architecture/decisions/index.md
+      - Infrastructure: architecture/infrastructure/index.md
+      - Services: architecture/services/index.md
+  - API:
+      - api/overview.md
+      - Endpoints: api/endpoints/index.md
+  - Contributing:
+      - contributing/setup.md
+      - contributing/guidelines.md
+      - contributing/workflow.md

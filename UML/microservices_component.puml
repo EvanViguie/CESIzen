@@ -1,0 +1,242 @@
+@startuml Marketplace Containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' Icon includes
+!define ICONURL https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/v3.0.0/icons
+!include ICONURL/common.puml
+!include ICONURL/font-awesome-6/react.puml
+!include ICONURL/font-awesome-6/cloudflare.puml
+!include ICONURL/font-awesome/cc_stripe.puml
+!include ICONURL/devicons2/fastapi.puml
+!include ICONURL/devicons2/redis.puml
+!include ICONURL/devicons/mongodb.puml
+!include ICONURL/devicons2/rabbitmq_original.puml
+!include ICONURL/devicons2/apachekafka_original.puml
+!include ICONURL/devicons2/grafana.puml
+!include ICONURL/devicons2/prometheus_original.puml
+!include ICONURL/devicons2/kubernetes.pumlc
+!include ICONURL/devicons2/envoy.puml
+!include ICONURL/devicons2/elasticsearch.puml
+
+' Custom sprites
+!include sprites/apollo.puml
+!include sprites/istio.puml
+!include sprites/eventstoredb.puml
+!include sprites/loki.puml
+!include sprites/tempo.puml
+!include sprites/patroni.puml
+!include sprites/velero.puml
+
+' Layout settings
+skinparam linetype ortho
+skinparam padding 10
+skinparam nodesep 80
+skinparam ranksep 100
+
+title Système Marketplace - Architecture C4 Niveau Conteneur
+
+' External Users
+Person(customer, "Client", "Utilisateur final de la marketplace")
+Person(seller, "Vendeur", "Fournisseur de produits", $sprite="person2")
+
+System_Boundary(marketplace, "Système Freehorse Marketplace") {
+    ' === Edge Layer ===
+    Boundary(edge_layer, "Couche Edge") {
+        Container(spa, "Application Web", "React", "Interface utilisateur", $sprite="react")
+        Container(waf, "WAF", "CloudFlare", "Protection DDoS", $sprite="cloudflare")
+    }
+
+    ' === Gateway Layer ===
+    Boundary(gateway_layer, "Couche Gateway") {
+        Container(graphql_gateway, "API Gateway", "Apollo Federation", "Point d'entrée API unifié", $sprite="apollo{scale=0.05}")
+        Container(rate_limiter, "Rate Limiter", "Envoy", "Contrôle de débit", $sprite="envoy")
+        Container(service_mesh, "Service Mesh", "Istio", "Communication sécurisée", $sprite="istio{scale=0.1}")
+    }
+
+    ' === Domain Services Layer ===
+    Boundary(domain_layer, "Services Métier") {
+        ' Identity Domain
+        Boundary(identity_domain, "Domaine Identité") {
+            Container(auth_service, "Auth Service", "FastAPI", "Authentication & Authorization", $sprite="fastapi")
+        }
+
+        ' User Domain
+        Boundary(user_domain, "Domaine Utilisateur") {
+            Container(buyer_service, "Service Acheteur", "FastAPI", "Gestion acheteurs", $sprite="fastapi")
+            Container(seller_service, "Service Vendeur", "FastAPI", "Gestion vendeurs", $sprite="fastapi")
+        }
+
+        ' Search Domain
+        Boundary(search_domain, "Domaine Recherche") {
+            Container(search_service, "Service Recherche", "FastAPI", "Gestion de la recherche", $sprite="fastapi")
+            Container(search_projector, "Projecteur Recherche", "FastAPI", "Projection données", $sprite="fastapi")
+            ContainerDb(search_engine, "Moteur Recherche", "Elasticsearch", "Index de recherche", $sprite="elasticsearch")
+        }
+
+        ' Commerce Domain
+        Boundary(commerce_domain, "Domaine Commerce") {
+            Container(product_service, "Service Produit", "FastAPI", "Catalogue", $sprite="fastapi")
+            Container(order_service, "Service Commande", "FastAPI", "Gestion commandes", $sprite="fastapi")
+            Container(payment_service, "Service Paiement", "FastAPI", "Transactions", $sprite="fastapi")
+        }
+    }
+
+    ' === Data Layer ===
+    Boundary(data_layer, "Couche Données") {
+        ' Databases Group
+        Together {
+            ContainerDb(auth_db, "Auth DB", "MongoDB", "Comptes", $sprite="mongodb")
+            ContainerDb(buyer_db, "Buyer DB", "MongoDB", "Acheteurs", $sprite="mongodb")
+            ContainerDb(seller_db, "Seller DB", "MongoDB", "Vendeurs", $sprite="mongodb")
+            ContainerDb(product_db, "Product DB", "MongoDB", "Catalogue", $sprite="mongodb")
+            ContainerDb(order_db, "Order DB", "MongoDB", "Commandes", $sprite="mongodb")
+            ContainerDb(payment_db, "Payment DB", "MongoDB", "Transactions", $sprite="mongodb")
+        }
+
+        ' Cache
+        Container(redis_cluster, "Cache Distribué", "Redis", "Cache système", $sprite="redis")
+    }
+
+    ' === Event Layer ===
+    Boundary(event_layer, "Couche Événementielle") {
+        Together {
+            Container(message_queue, "Message Bus", "RabbitMQ", "Communication événementielle", $sprite="rabbitmq_original")
+            Container(event_store, "Event Store", "EventStoreDB", "Source de vérité", $sprite="eventstoredb{scale=0.06}")
+            Container(stream_processor, "Stream Processor", "Kafka", "Traitement temps réel", $sprite="apachekafka_original")
+        }
+    }
+
+    ' === Support Layer ===
+    Boundary(support_layer, "Services Support") {
+        Container(notification_service, "Service Notification", "FastAPI", "Communications", $sprite="fastapi")
+        Container(analytics_service, "Service Analytics", "FastAPI", "Analyses", $sprite="fastapi")
+        ContainerDb(analytics_db, "Analytics DB", "MongoDB", "Données analytiques", $sprite="mongodb")
+        Container(analytics_dashboard, "Dashboard", "Grafana", "Visualisation", $sprite="grafana")
+    }
+
+    ' === Backup & DR Layer ===
+    Boundary(backup_dr_layer, "Couche Backup & DR") {
+        ' Backup Group
+        Together {
+            Container(backup_service, "Service Backup", "Velero", "Backup K8s", $sprite="velero{scale=0.3}")
+            ContainerDb(backup_storage, "Stockage Backup", "Object Storage", "Stockage longue durée")
+        }
+
+        ' DR Region
+        Boundary(dr_region, "Région DR") {
+            Together {
+                Container(dr_orchestrator_mongodb, "Orchestrateur MongoDB", "MongoDB Ops Manager", "Réplication MongoDB", $sprite="mongodb")
+                ContainerDb(dr_mongo_replica, "MongoDB DR", "MongoDB", "Réplication async", $sprite="mongodb")
+            }
+        }
+    }
+}
+
+' === External Systems ===
+Together {
+    System_Ext(cdn, "CDN", "Distribution statique", $sprite="cloudflare")
+    System_Boundary(monitoring_stack, "Stack Observabilité") {
+        System_Ext(prometheus, "Prometheus", "Métriques", $sprite="prometheus_original")
+        System_Ext(loki, "Loki", "Logs", $sprite="loki{scale=0.04}")
+        System_Ext(tempo, "Tempo", "Traces", $sprite="tempo{scale=0.2}")
+        System_Ext(grafana, "Grafana", "Visualisation", $sprite="grafana")
+    }
+    System_Ext(payment_gateway, "Stripe Connect", "Paiement marketplace", $sprite="cc_stripe")
+    System_Ext(email_service, "Cloudflare Email", "Emails transactionnels", $sprite="cloudflare")
+}
+
+' === Relationships ===
+' External Access
+Rel(customer, waf, "Utilise", "HTTPS")
+Rel(seller, waf, "Utilise", "HTTPS")
+Rel(spa, cdn, "Distribué via", "HTTPS")
+
+' Gateway Flow
+Rel(waf, graphql_gateway, "Route vers", "HTTPS")
+Rel(graphql_gateway, rate_limiter, "Route via", "HTTP/2")
+Rel(rate_limiter, redis_cluster, "Stocke compteurs", "Redis")
+Rel(rate_limiter, service_mesh, "Proxy vers", "HTTP/2")
+Rel(graphql_gateway, service_mesh, "Route via", "HTTPS")
+
+' Service Communication
+Rel(service_mesh, domain_layer, "Route vers", "mTLS")
+Rel(domain_layer, redis_cluster, "Cache", "Redis")
+Rel(domain_layer, data_layer, "Persiste", "SQL/NoSQL")
+
+' Search Flow
+Rel(product_service, message_queue, "Publie événements", "AMQP")
+Rel(message_queue, search_projector, "Consomme événements")
+Rel(search_projector, search_engine, "Met à jour index")
+Rel(search_service, search_engine, "Interroge")
+Rel(graphql_gateway, search_service, "Requêtes", "GraphQL")
+
+' Event Flow
+Rel(domain_layer, message_queue, "Publie", "AMQP")
+Rel(message_queue, event_store, "Persiste")
+Rel(message_queue, stream_processor, "Traite")
+Rel(stream_processor, analytics_service, "Analyse")
+
+' External Integration
+Rel(payment_service, payment_gateway, "Utilise", "HTTPS")
+Rel(notification_service, email_service, "Envoie via", "HTTPS")
+Rel(service_mesh, prometheus, "Métriques", "HTTPS")
+Rel(service_mesh, loki, "Logs", "HTTPS")
+Rel(service_mesh, tempo, "Traces", "HTTPS")
+Rel(prometheus, grafana, "Visualise")
+Rel(loki, grafana, "Visualise")
+Rel(tempo, grafana, "Visualise")
+
+' DR Relations
+Rel(auth_db, dr_mongo_replica, "Réplique", "Streaming")
+Rel(buyer_db, dr_mongo_replica, "Réplique", "Streaming")
+Rel(seller_db, dr_mongo_replica, "Réplique", "Streaming")
+Rel(order_db, dr_mongo_replica, "Réplique", "Streaming")
+Rel(payment_db, dr_mongo_replica, "Réplique", "Streaming")
+Rel(product_db, dr_mongo_replica, "Réplique", "Oplog")
+Rel(analytics_db, dr_mongo_replica, "Réplique", "Oplog")
+
+' Backup Relations
+Rel(backup_service, backup_storage, "Sauvegarde")
+Rel(data_layer, backup_service, "Sauvegardé par")
+
+LAYOUT_WITH_LEGEND()
+
+' === Notes ===
+note right of marketplace
+  Architecture:
+  - Architecture hexagonale
+  - Communication événementielle
+  - Domaines isolés
+  - Données distribuées
+  - Sécurité native
+  - RPO < 1h pour bases critiques
+  - RTO < 4h avec basculement DR
+end note
+
+note top of backup_dr_layer
+  Stratégie DR:
+  - Réplication async multi-région
+  - Sauvegardes incrémentales quotidiennes
+  - Sauvegardes complètes hebdomadaires
+  - Tests DR trimestriels via Velero
+  - Monitoring via stack observabilité
+end note
+
+note right of rate_limiter
+  Stratégie Rate Limiting:
+  - Rate limiting global distribué
+  - Limites descripteurs personnalisés
+  - Integration native avec Istio
+  - Haute performance L4/L7
+  - Métriques temps réel
+end note
+
+note left of search_domain
+  Architecture Search:
+  - Découplage via événements
+  - Projection dédiée
+  - Index de recherche isolé
+  - Scalabilité indépendante
+end note
+
+@enduml
