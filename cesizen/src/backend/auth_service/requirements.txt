@@ -1,0 +1,11 @@
+fastapi==0.115.11
+uvicorn==0.34.0
+pydantic==2.10.6
+pydantic[email]==2.10.6
+python-jose==3.4.0
+passlib==1.7.4
+bcrypt==4.3.0
+python-multipart==0.0.20
+pymongo==4.11.1
+redis==5.2.1
+email-validator==2.1.1
